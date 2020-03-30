@@ -1,0 +1,13 @@
+.coin-item{
+   padding: 20px;
+   border: 1px solid #555;
+   border-radius: 5px;
+   width: 100px;
+   margin: 20px 0;
+}
+.coin-item__name{
+
+}
+.coin-item__amount{
+
+}
