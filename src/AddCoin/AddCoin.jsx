@@ -32,7 +32,7 @@ class AddCoin extends Component {
       this.props.addCoin(coin);
 
       this.setState({
-         coinName: "",
+         coinName: "BTC",
          coinAmount: 0
       });
    }

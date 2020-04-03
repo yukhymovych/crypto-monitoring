@@ -16,46 +16,34 @@ class App extends Component {
       this.app = firebase.initializeApp(config);
       this.database = this.app.database().ref().child('coinList');
 
+      this.editForm = React.createRef();
+      this.errorMessage = React.createRef();
+
       this.state = {
          coinArray: [],
          coinFullSum: 0,
-         timeToRerender: 9999,
-         intervalId: 0,
+         userIP: '',
       }
    }
 
    componentDidMount() {
       const coinArray = [...this.state.coinArray];
-      let apiCallUrl = '';
-      let tempCoinPrice = 0;
-      let coinInCash = 0;
-
+   
       this.database.on('child_added', snap => {
-         apiCallUrl = 'https://min-api.cryptocompare.com/data/price?fsym=' + snap.val().coinName + '&tsyms=USD';
+         coinArray.push({
+            id: snap.key,
+            coinName: snap.val().coinName,
+            coinAmount: snap.val().coinAmount
+         });
 
-         fetch(apiCallUrl)
-         .then(response => response.json())
-         .then(json     => {
-            tempCoinPrice = json.USD;
-            coinInCash =  (json.USD * snap.val().coinAmount).toFixed(2);
-
-            coinArray.push({
-               id: snap.key,
-               coinName: snap.val().coinName,
-               coinAmount: snap.val().coinAmount,
-               coinPrice: tempCoinPrice,
-               coinInCash: coinInCash,
-            });
-
-            this.setState({
-               coinArray
-            });
+         this.setState({
+            coinArray
          });
       });
 
       this.database.on('child_removed', snap => {
-         for(var i=0; i < coinArray.length; i++){
-            if(coinArray[i].id === snap.key){
+         for (let i=0; i < coinArray.length; i++) {
+            if (coinArray[i].id === snap.key) {
                coinArray.splice(i, 1);
             }
          }
@@ -65,24 +53,20 @@ class App extends Component {
          });
       });
 
+      this.database.on('child_changed', snap => {
+         console.log(1);
+         for (let i=0; i < coinArray.length; i++) {
+            if (coinArray[i].id === snap.key) {
+               coinArray[i].coinName = snap.val().coinName;
+               coinArray[i].coinAmount = snap.val().coinAmount;
+            }
+         }
 
-      // var intervalId = setInterval(this.timer, 1000);
-      // this.setState({intervalId: intervalId});
+         this.setState({
+            coinArray
+         });
+      });
    }
-
-   // timer = () => {
-   //    const coinArray = [...this.state.coinArray];
-
-   //    this.setState({ 
-   //       currentCount: this.state.currentCount -1,
-   //    });
-   // }
-
-   // componentWillUnmount() {
-   //    clearInterval(this.state.intervalId);
-   // }
-
-   
 
    coinSumBuild = (singleCoinSum) => {
       let newSum = this.state.coinFullSum + parseInt(singleCoinSum, 10);
@@ -111,70 +95,107 @@ class App extends Component {
       });
    }
 
-   // editCoin = (coin) => {
-   //    let array = [...this.state.coinArray];
-   //    let coinForEdit = {
-   //       id: coin.id,
-   //       coinName: coin.coinName,
-   //       coinAmount: coin.coinAmount
-   //    };
+   editCoin = (coin) => {
+      let coinArray = [...this.state.coinArray];
 
+      let editCoinBtn = document.getElementById("edit-coin-btn");
+      let editCoinCloseBtn = document.getElementById("edit-coin-close-btn");
+      let errorMessage = this.errorMessage.current;
+
+      let editCoinName;
+      let editCoinAmount;
+
+      this.editForm.current.style = "opacity: 1; visibility: visible";
+
+      for (let i=0; i < coinArray.length; i++) {
+         if(coinArray[i].id === coin.id){
+            document.getElementById("coinName").value = coinArray[i].coinName;
+            document.getElementById("coinAmount").value = coinArray[i].coinAmount;
+         }
+      }
       
+      editCoinBtn.onclick = () => {
+         for (let i=0; i < coinArray.length; i++) {
+            if(coinArray[i].id === coin.id){
+               editCoinName = document.getElementById("coinName").value;
+               editCoinAmount = document.getElementById("coinAmount").value;
+            }
+         }
 
-   //    for (let i = 0; i < array.length; i++) {
-   //       if (array.coinArray[i].id === coin.id) {
-   //          array[i] = {
-   //             id: coin.id,
-   //             coinName: coin.coinName,
-   //             coinAmount: coin.coinAmount,
-   //          }
-   //       }
-   //    }
+         if (isNaN(editCoinAmount) || editCoinAmount == '' || editCoinAmount == 0) {
+            this.errorMessage.current.textContent = "Ошибка. Введите число.";
+            errorMessage.classList.add("error-message--fade-in");
+         }
+         else {
+            for (let i = 0; i < coinArray.length; i++) {
+               if(coinArray[i].id === coin.id) {
+                  this.database.child(coin.id).set({
+                     coinName: editCoinName,
+                     coinAmount: editCoinAmount
+                  });
+               }
+            }
+            
+            this.editForm.current.style = "opacity: 0; visibility: hidden";
+            errorMessage.classList.remove("error-message--fade-in");
+         }
+      }
 
-   //    this.setState({
-   //       coinArray: array
-   //    });
-   // }
+      editCoinCloseBtn.onclick = () => {
+         this.editForm.current.style = "opacity: 0; visibility: hidden";
+         errorMessage.classList.remove("error-message--fade-in");
+      }
+   }
 
    render() {
       return (
          <div className="App">
             <div className="wrapper">
-               <div className="coinList">
+               <div className="coin-full-sum"><span>Вся сумма</span><br/>${this.state.coinFullSum}</div>
+
+               <div className="coin-list">
                {
                   this.state.coinArray.map((item) => {
                      return(
                         <Coin 
                            coinId={item.id} 
                            coinName={item.coinName} 
-                           coinAmount={item.coinAmount} 
+                           coinAmount={item.coinAmount}
                            key={item.id}
 
                            removeCoin={this.removeCoin}
                            coinSumBuild={this.coinSumBuild}
                            coinSumReduce={this.coinSumReduce}
-                           // editCoin={this.editCoin}
+                           editCoin={this.editCoin}
                         />
                      )
                   })
                }
-               {this.state.coinFullSum}
                </div>
 
                <AddCoin addCoin={this.addCoin} />
                
-               {/* <div className="edit-form">
-                  <input className="editcoin-input" 
-                  placeholder="Название"
-                  value={this.state.coinName} 
-                  onChange={this.handleNameInput} />
-                  <input className="editcoin-input" 
-                  placeholder="Сумма"
-                  value={this.state.coinAmount} 
-                  onChange={this.handleAmountInput} />
-                  <button className="editcoin-btn"
-                  onClick={this.writeCoin}>Сохранить</button>
-               </div> */}
+               <div className="edit-form" ref={this.editForm}>
+                  <select className="edit-coin-name addcoin-input" id="coinName">
+                     <option selected value="BTC">Bitcoin</option>
+                     <option value="BCH">Bitcoin Cash</option>
+                     <option value="BNB">Binance Coin</option>
+                     <option value="DASH">Dash</option>
+                     <option value="EOS">EOS</option>
+                     <option value="ETH">Ethereum</option>
+                     <option value="LTC">Litecoin</option>
+                     <option value="XMR">Monero</option>
+                     <option value="NEO">NEO</option>
+                     <option value="XLM">Stellar</option>
+                     <option value="TRX">Tron</option>
+                     <option value="XRP">XRP</option>
+                     <option value="ZEC">Zcash</option>
+                  </select>
+                  <input className="edit-coin-amount addcoin-input" id="coinAmount" placeholder="Сумма" />
+                  <button id="edit-coin-btn" className="addcoin-btn">Сохранить</button>
+                  <button id="edit-coin-close-btn" className="addcoin-btn">Отмена</button>
+                  <p className="error-message" ref={this.errorMessage}>.</p>
+               </div>
             </div>
          </div>
      );
