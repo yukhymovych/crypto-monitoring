@@ -14,7 +14,7 @@ class App extends Component {
       super(props);
 
       this.app = firebase.initializeApp(config);
-      this.database = this.app.database().ref().child('coinList');
+      this.database = this.app.database().ref().child('coinList'); /* coinList - real data */
 
       this.editForm = React.createRef();
       this.errorMessage = React.createRef();
