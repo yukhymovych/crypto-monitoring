@@ -14,7 +14,7 @@ class App extends Component {
       super(props);
 
       this.app = firebase.initializeApp(config);
-      this.database = this.app.database().ref().child('coinList');
+      this.database = this.app.database().ref().child('testone');
 
       this.editForm = React.createRef();
       this.errorMessage = React.createRef();
@@ -27,75 +27,47 @@ class App extends Component {
    }
 
    componentDidMount() {
-      let coinArray = [...this.state.coinArray];
-   
-      this.database.once('value', function(snapshot) {
-         snapshot.forEach(function(childSnapshot) {
-            coinArray.push({
-               id: childSnapshot.key,
-               coinName: childSnapshot.val().coinName,
-               coinAmount: childSnapshot.val().coinAmount
-            });
-         });
-      });
-      
-      this.setState({
-         coinArray
-      });
+      this.coinArrayRebuild();
    }
 
-   // componentDidUpdate() {
-   //    const coinArray = [...this.state.coinArray];
+   coinArrayRebuild = () => {
+      let newArray = [];
+      let coinNameString = '';
+      let apiCallUrl = '';
+      let coinFullSum = 0;
 
-   //    this.database.on('child_added', snap => {
-   //       coinArray.push({
-   //          id: snap.key,
-   //          coinName: snap.val().coinName,
-   //          coinAmount: snap.val().coinAmount
-   //       });
+      this.database.once('value', snap => {
+         snap.forEach(function(snapItem) {
+            newArray.push({
+               id: snapItem.key,
+               coinName: snapItem.val().coinName,
+               coinAmount: snapItem.val().coinAmount
+            });
+            coinNameString += snapItem.val().coinName + ',';
+         });
 
-   //       this.setState({
-   //          coinArray
-   //       });
-   //    });
+         apiCallUrl = 'https://min-api.cryptocompare.com/data/pricemultifull?fsyms=' + coinNameString + '&tsyms=USD';
 
-   //    this.database.on('child_removed', snap => {
-   //       for (let i=0; i < coinArray.length; i++) {
-   //          if (coinArray[i].id === snap.key) {
-   //             coinArray.splice(i, 1);
-   //          }
-   //       }
+         fetch(apiCallUrl)
+         .then(response => response.json())
+         .then(json => this.setState(() => {
+            for (let i = 0; i < newArray.length; i++) {
+               newArray[i].coinPrice = json.DISPLAY[newArray[i].coinName].USD.PRICE;
+               newArray[i].coinInCash = (json.DISPLAY[newArray[i].coinName].USD.PRICE.slice(1) * newArray[i].coinAmount).toFixed(2);
+               newArray[i].coinImgUrl = 'https://www.cryptocompare.com' + json.DISPLAY[newArray[i].coinName].USD.IMAGEURL;
+               coinFullSum += newArray[i].coinInCash * 1;
+            }
 
-   //       this.setState({
-   //          coinArray
-   //       });
-   //    });
-
-   //    this.database.on('child_changed', snap => {
-   //       console.log(1);
-   //       for (let i=0; i < coinArray.length; i++) {
-   //          if (coinArray[i].id === snap.key) {
-   //             coinArray[i].coinName = snap.val().coinName;
-   //             coinArray[i].coinAmount = snap.val().coinAmount;
-   //          }
-   //       }
-
-   //       this.setState({
-   //          coinArray
-   //       });
-   //    });
-   // }
-
-   coinSumBuild = (singleCoinSum) => {
-      let newSum = this.state.coinFullSum + parseInt(singleCoinSum, 10);
-
-      this.setState({
-         coinFullSum: newSum
+            this.setState({
+               coinArray: newArray,
+               coinFullSum: coinFullSum.toFixed(2)
+            });
+         }));
       });
    }
 
    coinSumReduce = (singleCoinSum) => {
-      let newSum = this.state.coinFullSum - parseInt(singleCoinSum, 10);
+      let newSum = (this.state.coinFullSum - parseInt(singleCoinSum, 10)).toFixed(2);
 
       this.setState({
          coinFullSum: newSum
@@ -119,22 +91,12 @@ class App extends Component {
    }
 
    addCoin = (coin) => {
-      let coinArray = [...this.state.coinArray];
-
       this.database.push().set({
          coinName: coin.coinName,
          coinAmount: coin.coinAmount,
       });
 
-      coinArray.push({
-         id: "fasdasdgasdgsdh",
-         coinName: coin.coinName,
-         coinAmount: coin.coinAmount
-      });
-
-      this.setState({
-         coinArray
-      });
+      this.coinArrayRebuild();
    }
 
    editCoin = (coin) => {
@@ -164,7 +126,7 @@ class App extends Component {
             }
          }
 
-         if (isNaN(editCoinAmount) || editCoinAmount == '' || editCoinAmount == 0) {
+         if (isNaN(editCoinAmount) || editCoinAmount === '' || editCoinAmount === 0) {
             this.errorMessage.current.textContent = "Ошибка. Введите число.";
             errorMessage.classList.add("error-message--fade-in");
          }
@@ -175,20 +137,13 @@ class App extends Component {
                      coinName: editCoinName,
                      coinAmount: editCoinAmount
                   });
-                  coinArray[i] = {
-                     id: coin.id,
-                     coinName: editCoinName,
-                     coinAmount: editCoinAmount
-                  }
+
+                  this.coinArrayRebuild();
                }
             }
             
             this.editForm.current.style = "opacity: 0; visibility: hidden";
             errorMessage.classList.remove("error-message--fade-in");
-
-            this.setState({
-               coinArray
-            });
          }
       }
 
@@ -207,20 +162,22 @@ class App extends Component {
                <div className="coin-list">
                {
                   this.state.coinArray.map((item) => {
-                     
-                     // return(
-                     //    <Coin 
-                     //       coinId={item.id} 
-                     //       coinName={item.coinName} 
-                     //       coinAmount={item.coinAmount}
-                     //       key={item.id}
+                     return(
+                        <Coin 
+                           coinId={item.id} 
+                           coinName={item.coinName} 
+                           coinAmount={item.coinAmount}
+                           coinPrice={item.coinPrice}
+                           coinInCash={item.coinInCash}
+                           coinImgUrl={item.coinImgUrl}
+                           key={item.id}
 
-                     //       removeCoin={this.removeCoin}
-                     //       coinSumBuild={this.coinSumBuild}
-                     //       coinSumReduce={this.coinSumReduce}
-                     //       editCoin={this.editCoin}
-                     //    />
-                     // )
+                           removeCoin={this.removeCoin}
+                           coinSumBuild={this.coinSumBuild}
+                           coinSumReduce={this.coinSumReduce}
+                           editCoin={this.editCoin}
+                        />
+                     )
                   })
                }
                </div>
