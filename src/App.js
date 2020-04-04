@@ -27,46 +27,64 @@ class App extends Component {
    }
 
    componentDidMount() {
-      const coinArray = [...this.state.coinArray];
+      let coinArray = [...this.state.coinArray];
    
-      this.database.on('child_added', snap => {
-         coinArray.push({
-            id: snap.key,
-            coinName: snap.val().coinName,
-            coinAmount: snap.val().coinAmount
-         });
-
-         this.setState({
-            coinArray
+      this.database.once('value', function(snapshot) {
+         snapshot.forEach(function(childSnapshot) {
+            coinArray.push({
+               id: childSnapshot.key,
+               coinName: childSnapshot.val().coinName,
+               coinAmount: childSnapshot.val().coinAmount
+            });
          });
       });
-
-      this.database.on('child_removed', snap => {
-         for (let i=0; i < coinArray.length; i++) {
-            if (coinArray[i].id === snap.key) {
-               coinArray.splice(i, 1);
-            }
-         }
-
-         this.setState({
-            coinArray
-         });
-      });
-
-      this.database.on('child_changed', snap => {
-         console.log(1);
-         for (let i=0; i < coinArray.length; i++) {
-            if (coinArray[i].id === snap.key) {
-               coinArray[i].coinName = snap.val().coinName;
-               coinArray[i].coinAmount = snap.val().coinAmount;
-            }
-         }
-
-         this.setState({
-            coinArray
-         });
+      
+      this.setState({
+         coinArray
       });
    }
+
+   // componentDidUpdate() {
+   //    const coinArray = [...this.state.coinArray];
+
+   //    this.database.on('child_added', snap => {
+   //       coinArray.push({
+   //          id: snap.key,
+   //          coinName: snap.val().coinName,
+   //          coinAmount: snap.val().coinAmount
+   //       });
+
+   //       this.setState({
+   //          coinArray
+   //       });
+   //    });
+
+   //    this.database.on('child_removed', snap => {
+   //       for (let i=0; i < coinArray.length; i++) {
+   //          if (coinArray[i].id === snap.key) {
+   //             coinArray.splice(i, 1);
+   //          }
+   //       }
+
+   //       this.setState({
+   //          coinArray
+   //       });
+   //    });
+
+   //    this.database.on('child_changed', snap => {
+   //       console.log(1);
+   //       for (let i=0; i < coinArray.length; i++) {
+   //          if (coinArray[i].id === snap.key) {
+   //             coinArray[i].coinName = snap.val().coinName;
+   //             coinArray[i].coinAmount = snap.val().coinAmount;
+   //          }
+   //       }
+
+   //       this.setState({
+   //          coinArray
+   //       });
+   //    });
+   // }
 
    coinSumBuild = (singleCoinSum) => {
       let newSum = this.state.coinFullSum + parseInt(singleCoinSum, 10);
@@ -85,13 +103,37 @@ class App extends Component {
    }
 
    removeCoin = (id) => {
+      let coinArray = [...this.state.coinArray];
+
       this.database.child(id).remove();
+
+      for (let i=0; i < coinArray.length; i++) {
+         if (coinArray[i].id === id) {
+            coinArray.splice(i, 1);
+         }
+      }
+
+      this.setState({
+         coinArray
+      });
    }
 
    addCoin = (coin) => {
+      let coinArray = [...this.state.coinArray];
+
       this.database.push().set({
          coinName: coin.coinName,
          coinAmount: coin.coinAmount,
+      });
+
+      coinArray.push({
+         id: "fasdasdgasdgsdh",
+         coinName: coin.coinName,
+         coinAmount: coin.coinAmount
+      });
+
+      this.setState({
+         coinArray
       });
    }
 
@@ -133,11 +175,20 @@ class App extends Component {
                      coinName: editCoinName,
                      coinAmount: editCoinAmount
                   });
+                  coinArray[i] = {
+                     id: coin.id,
+                     coinName: editCoinName,
+                     coinAmount: editCoinAmount
+                  }
                }
             }
             
             this.editForm.current.style = "opacity: 0; visibility: hidden";
             errorMessage.classList.remove("error-message--fade-in");
+
+            this.setState({
+               coinArray
+            });
          }
       }
 
@@ -156,19 +207,20 @@ class App extends Component {
                <div className="coin-list">
                {
                   this.state.coinArray.map((item) => {
-                     return(
-                        <Coin 
-                           coinId={item.id} 
-                           coinName={item.coinName} 
-                           coinAmount={item.coinAmount}
-                           key={item.id}
+                     
+                     // return(
+                     //    <Coin 
+                     //       coinId={item.id} 
+                     //       coinName={item.coinName} 
+                     //       coinAmount={item.coinAmount}
+                     //       key={item.id}
 
-                           removeCoin={this.removeCoin}
-                           coinSumBuild={this.coinSumBuild}
-                           coinSumReduce={this.coinSumReduce}
-                           editCoin={this.editCoin}
-                        />
-                     )
+                     //       removeCoin={this.removeCoin}
+                     //       coinSumBuild={this.coinSumBuild}
+                     //       coinSumReduce={this.coinSumReduce}
+                     //       editCoin={this.editCoin}
+                     //    />
+                     // )
                   })
                }
                </div>
