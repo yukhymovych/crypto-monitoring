@@ -22,13 +22,13 @@ class App extends Component {
       this.state = {
          coinArray: [],
          coinFullSum: 0,
-         userIP: '',
+         // userIP: '',
       }
    }
 
    componentDidMount() {
       this.coinArrayRebuild();
-      this.userIpChecker();
+      // this.userIpChecker();
    }
 
    coinArrayRebuild = () => {
@@ -154,23 +154,23 @@ class App extends Component {
       }
    }
 
-   userIpChecker = () => {
-      fetch('http://ip-api.com/json/')
-         .then(response => response.json())
-         .then(json => this.setState({
-            userIP: json.query
-         }));
-   }
+   // userIpChecker = () => {
+   //    fetch('http://ip-api.com/json/')
+   //       .then(response => response.json())
+   //       .then(json => this.setState({
+   //          userIP: json.query
+   //       }));
+   // }
 
    render() {
-      if (this.state.userIP !== "93.73.199.135") {
-         return(
-            <div className="App">
-               Sorry man, it's not available for you :(
-            </div>
-         );
-      }
-      else {
+      // if (this.state.userIP !== "93.73.199.135") {
+      //    return(
+      //       <div className="App">
+      //          Sorry man, it's not available for you :(
+      //       </div>
+      //    );
+      // }
+      // else {
          return (
             <div className="App">
                <div className="wrapper">
@@ -225,7 +225,7 @@ class App extends Component {
                </div>
             </div>
         );
-      }
+      // }
    }
 }
 
