@@ -2,10 +2,7 @@ import React, { Component } from 'react';
 import './Coin.css';
 
 class Coin extends Component {
-   constructor(props) {
-      super(props);
-   }
-
+   
    componentWillUnmount() {
       this.props.coinSumReduce(this.props.coinInCash);
    }
