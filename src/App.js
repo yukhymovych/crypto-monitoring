@@ -28,6 +28,7 @@ class App extends Component {
 
    componentDidMount() {
       this.coinArrayRebuild();
+      this.userIpChecker();
    }
 
    coinArrayRebuild = () => {
@@ -52,9 +53,9 @@ class App extends Component {
          .then(response => response.json())
          .then(json => this.setState(() => {
             for (let i = 0; i < newArray.length; i++) {
-               newArray[i].coinPrice = json.DISPLAY[newArray[i].coinName].USD.PRICE;
-               newArray[i].coinInCash = (json.DISPLAY[newArray[i].coinName].USD.PRICE.slice(1) * newArray[i].coinAmount).toFixed(2);
-               newArray[i].coinImgUrl = 'https://www.cryptocompare.com' + json.DISPLAY[newArray[i].coinName].USD.IMAGEURL;
+               newArray[i].coinPrice = json.RAW[newArray[i].coinName].USD.PRICE;
+               newArray[i].coinInCash = (json.RAW[newArray[i].coinName].USD.PRICE * newArray[i].coinAmount).toFixed(2);
+               newArray[i].coinImgUrl = 'https://www.cryptocompare.com' + json.RAW[newArray[i].coinName].USD.IMAGEURL;
                coinFullSum += newArray[i].coinInCash * 1;
             }
 
@@ -153,61 +154,78 @@ class App extends Component {
       }
    }
 
+   userIpChecker = () => {
+      fetch('http://ip-api.com/json/')
+         .then(response => response.json())
+         .then(json => this.setState({
+            userIP: json.query
+         }));
+   }
+
    render() {
-      return (
-         <div className="App">
-            <div className="wrapper">
-               <div className="coin-full-sum"><span>Вся сумма</span><br/>${this.state.coinFullSum}</div>
-
-               <div className="coin-list">
-               {
-                  this.state.coinArray.map((item) => {
-                     return(
-                        <Coin 
-                           coinId={item.id} 
-                           coinName={item.coinName} 
-                           coinAmount={item.coinAmount}
-                           coinPrice={item.coinPrice}
-                           coinInCash={item.coinInCash}
-                           coinImgUrl={item.coinImgUrl}
-                           key={item.id}
-
-                           removeCoin={this.removeCoin}
-                           coinSumBuild={this.coinSumBuild}
-                           coinSumReduce={this.coinSumReduce}
-                           editCoin={this.editCoin}
-                        />
-                     )
-                  })
-               }
-               </div>
-
-               <AddCoin addCoin={this.addCoin} />
-               
-               <div className="edit-form" ref={this.editForm}>
-                  <select className="edit-coin-name addcoin-input" id="coinName">
-                     <option selected value="BTC">Bitcoin</option>
-                     <option value="BCH">Bitcoin Cash</option>
-                     <option value="BNB">Binance Coin</option>
-                     <option value="DASH">Dash</option>
-                     <option value="EOS">EOS</option>
-                     <option value="ETH">Ethereum</option>
-                     <option value="LTC">Litecoin</option>
-                     <option value="XMR">Monero</option>
-                     <option value="NEO">NEO</option>
-                     <option value="XLM">Stellar</option>
-                     <option value="TRX">Tron</option>
-                     <option value="XRP">XRP</option>
-                     <option value="ZEC">Zcash</option>
-                  </select>
-                  <input className="edit-coin-amount addcoin-input" id="coinAmount" placeholder="Сумма" />
-                  <button id="edit-coin-btn" className="addcoin-btn">Сохранить</button>
-                  <button id="edit-coin-close-btn" className="addcoin-btn">Отмена</button>
-                  <p className="error-message" ref={this.errorMessage}>.</p>
+      if (this.state.userIP !== "93.73.199.135") {
+         return(
+            <div className="App">
+               Sorry man, it's not available for you :(
+            </div>
+         );
+      }
+      else {
+         return (
+            <div className="App">
+               <div className="wrapper">
+                  <div className="coin-full-sum"><span>Вся сумма</span><br/>${this.state.coinFullSum}</div>
+   
+                  <div className="coin-list">
+                  {
+                     this.state.coinArray.map((item) => {
+                        return(
+                           <Coin 
+                              coinId={item.id} 
+                              coinName={item.coinName} 
+                              coinAmount={item.coinAmount}
+                              coinPrice={item.coinPrice}
+                              coinInCash={item.coinInCash}
+                              coinImgUrl={item.coinImgUrl}
+                              key={item.id}
+   
+                              removeCoin={this.removeCoin}
+                              coinSumBuild={this.coinSumBuild}
+                              coinSumReduce={this.coinSumReduce}
+                              editCoin={this.editCoin}
+                           />
+                        )
+                     })
+                  }
+                  </div>
+   
+                  <AddCoin addCoin={this.addCoin} />
+                  
+                  <div className="edit-form" ref={this.editForm}>
+                     <select className="edit-coin-name addcoin-input" id="coinName">
+                        <option selected value="BTC">Bitcoin</option>
+                        <option value="BCH">Bitcoin Cash</option>
+                        <option value="BNB">Binance Coin</option>
+                        <option value="DASH">Dash</option>
+                        <option value="EOS">EOS</option>
+                        <option value="ETH">Ethereum</option>
+                        <option value="LTC">Litecoin</option>
+                        <option value="XMR">Monero</option>
+                        <option value="NEO">NEO</option>
+                        <option value="XLM">Stellar</option>
+                        <option value="TRX">Tron</option>
+                        <option value="XRP">XRP</option>
+                        <option value="ZEC">Zcash</option>
+                     </select>
+                     <input className="edit-coin-amount addcoin-input" id="coinAmount" placeholder="Сумма" />
+                     <button id="edit-coin-btn" className="addcoin-btn">Сохранить</button>
+                     <button id="edit-coin-close-btn" className="addcoin-btn">Отмена</button>
+                     <p className="error-message" ref={this.errorMessage}>.</p>
+                  </div>
                </div>
             </div>
-         </div>
-     );
+        );
+      }
    }
 }
 
