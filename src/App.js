@@ -22,62 +22,53 @@ class App extends Component {
       this.state = {
          coinArray: [],
          coinFullSum: 0,
-         userIP: '',
+         // userIP: '',
       }
    }
 
    componentDidMount() {
-      const coinArray = [...this.state.coinArray];
-   
-      this.database.on('child_added', snap => {
-         coinArray.push({
-            id: snap.key,
-            coinName: snap.val().coinName,
-            coinAmount: snap.val().coinAmount
-         });
-
-         this.setState({
-            coinArray
-         });
-      });
-
-      this.database.on('child_removed', snap => {
-         for (let i=0; i < coinArray.length; i++) {
-            if (coinArray[i].id === snap.key) {
-               coinArray.splice(i, 1);
-            }
-         }
-
-         this.setState({
-            coinArray
-         });
-      });
-
-      this.database.on('child_changed', snap => {
-         console.log(1);
-         for (let i=0; i < coinArray.length; i++) {
-            if (coinArray[i].id === snap.key) {
-               coinArray[i].coinName = snap.val().coinName;
-               coinArray[i].coinAmount = snap.val().coinAmount;
-            }
-         }
-
-         this.setState({
-            coinArray
-         });
-      });
+      this.coinArrayRebuild();
+      // this.userIpChecker();
    }
 
-   coinSumBuild = (singleCoinSum) => {
-      let newSum = this.state.coinFullSum + parseInt(singleCoinSum, 10);
+   coinArrayRebuild = () => {
+      let newArray = [];
+      let coinNameString = '';
+      let apiCallUrl = '';
+      let coinFullSum = 0;
 
-      this.setState({
-         coinFullSum: newSum
+      this.database.once('value', snap => {
+         snap.forEach(function(snapItem) {
+            newArray.push({
+               id: snapItem.key,
+               coinName: snapItem.val().coinName,
+               coinAmount: snapItem.val().coinAmount
+            });
+            coinNameString += snapItem.val().coinName + ',';
+         });
+
+         apiCallUrl = 'https://min-api.cryptocompare.com/data/pricemultifull?fsyms=' + coinNameString + '&tsyms=USD';
+
+         fetch(apiCallUrl)
+         .then(response => response.json())
+         .then(json => this.setState(() => {
+            for (let i = 0; i < newArray.length; i++) {
+               newArray[i].coinPrice = json.RAW[newArray[i].coinName].USD.PRICE;
+               newArray[i].coinInCash = (json.RAW[newArray[i].coinName].USD.PRICE * newArray[i].coinAmount).toFixed(2);
+               newArray[i].coinImgUrl = 'https://www.cryptocompare.com' + json.RAW[newArray[i].coinName].USD.IMAGEURL;
+               coinFullSum += newArray[i].coinInCash * 1;
+            }
+
+            this.setState({
+               coinArray: newArray,
+               coinFullSum: coinFullSum.toFixed(2)
+            });
+         }));
       });
    }
 
    coinSumReduce = (singleCoinSum) => {
-      let newSum = this.state.coinFullSum - parseInt(singleCoinSum, 10);
+      let newSum = (this.state.coinFullSum - parseInt(singleCoinSum, 10)).toFixed(2);
 
       this.setState({
          coinFullSum: newSum
@@ -85,7 +76,19 @@ class App extends Component {
    }
 
    removeCoin = (id) => {
+      let coinArray = [...this.state.coinArray];
+
       this.database.child(id).remove();
+
+      for (let i=0; i < coinArray.length; i++) {
+         if (coinArray[i].id === id) {
+            coinArray.splice(i, 1);
+         }
+      }
+
+      this.setState({
+         coinArray
+      });
    }
 
    addCoin = (coin) => {
@@ -93,6 +96,8 @@ class App extends Component {
          coinName: coin.coinName,
          coinAmount: coin.coinAmount,
       });
+
+      this.coinArrayRebuild();
    }
 
    editCoin = (coin) => {
@@ -122,7 +127,7 @@ class App extends Component {
             }
          }
 
-         if (isNaN(editCoinAmount) || editCoinAmount == '' || editCoinAmount == 0) {
+         if (isNaN(editCoinAmount) || editCoinAmount === '' || editCoinAmount === 0) {
             this.errorMessage.current.textContent = "Ошибка. Введите число.";
             errorMessage.classList.add("error-message--fade-in");
          }
@@ -133,6 +138,8 @@ class App extends Component {
                      coinName: editCoinName,
                      coinAmount: editCoinAmount
                   });
+
+                  this.coinArrayRebuild();
                }
             }
             
@@ -147,58 +154,78 @@ class App extends Component {
       }
    }
 
+   // userIpChecker = () => {
+   //    fetch('http://ip-api.com/json/')
+   //       .then(response => response.json())
+   //       .then(json => this.setState({
+   //          userIP: json.query
+   //       }));
+   // }
+
    render() {
-      return (
-         <div className="App">
-            <div className="wrapper">
-               <div className="coin-full-sum"><span>Вся сумма</span><br/>${this.state.coinFullSum}</div>
-
-               <div className="coin-list">
-               {
-                  this.state.coinArray.map((item) => {
-                     return(
-                        <Coin 
-                           coinId={item.id} 
-                           coinName={item.coinName} 
-                           coinAmount={item.coinAmount}
-                           key={item.id}
-
-                           removeCoin={this.removeCoin}
-                           coinSumBuild={this.coinSumBuild}
-                           coinSumReduce={this.coinSumReduce}
-                           editCoin={this.editCoin}
-                        />
-                     )
-                  })
-               }
-               </div>
-
-               <AddCoin addCoin={this.addCoin} />
-               
-               <div className="edit-form" ref={this.editForm}>
-                  <select className="edit-coin-name addcoin-input" id="coinName">
-                     <option selected value="BTC">Bitcoin</option>
-                     <option value="BCH">Bitcoin Cash</option>
-                     <option value="BNB">Binance Coin</option>
-                     <option value="DASH">Dash</option>
-                     <option value="EOS">EOS</option>
-                     <option value="ETH">Ethereum</option>
-                     <option value="LTC">Litecoin</option>
-                     <option value="XMR">Monero</option>
-                     <option value="NEO">NEO</option>
-                     <option value="XLM">Stellar</option>
-                     <option value="TRX">Tron</option>
-                     <option value="XRP">XRP</option>
-                     <option value="ZEC">Zcash</option>
-                  </select>
-                  <input className="edit-coin-amount addcoin-input" id="coinAmount" placeholder="Сумма" />
-                  <button id="edit-coin-btn" className="addcoin-btn">Сохранить</button>
-                  <button id="edit-coin-close-btn" className="addcoin-btn">Отмена</button>
-                  <p className="error-message" ref={this.errorMessage}>.</p>
+      // if (this.state.userIP !== "93.73.199.135") {
+      //    return(
+      //       <div className="App">
+      //          Sorry man, it's not available for you :(
+      //       </div>
+      //    );
+      // }
+      // else {
+         return (
+            <div className="App">
+               <div className="wrapper">
+                  <div className="coin-full-sum"><span>Вся сумма</span><br/>${this.state.coinFullSum}</div>
+   
+                  <div className="coin-list">
+                  {
+                     this.state.coinArray.map((item) => {
+                        return(
+                           <Coin 
+                              coinId={item.id} 
+                              coinName={item.coinName} 
+                              coinAmount={item.coinAmount}
+                              coinPrice={item.coinPrice}
+                              coinInCash={item.coinInCash}
+                              coinImgUrl={item.coinImgUrl}
+                              key={item.id}
+   
+                              removeCoin={this.removeCoin}
+                              coinSumBuild={this.coinSumBuild}
+                              coinSumReduce={this.coinSumReduce}
+                              editCoin={this.editCoin}
+                           />
+                        )
+                     })
+                  }
+                  </div>
+   
+                  <AddCoin addCoin={this.addCoin} />
+                  
+                  <div className="edit-form" ref={this.editForm}>
+                     <select className="edit-coin-name addcoin-input" id="coinName">
+                        <option selected value="BTC">Bitcoin</option>
+                        <option value="BCH">Bitcoin Cash</option>
+                        <option value="BNB">Binance Coin</option>
+                        <option value="DASH">Dash</option>
+                        <option value="EOS">EOS</option>
+                        <option value="ETH">Ethereum</option>
+                        <option value="LTC">Litecoin</option>
+                        <option value="XMR">Monero</option>
+                        <option value="NEO">NEO</option>
+                        <option value="XLM">Stellar</option>
+                        <option value="TRX">Tron</option>
+                        <option value="XRP">XRP</option>
+                        <option value="ZEC">Zcash</option>
+                     </select>
+                     <input className="edit-coin-amount addcoin-input" id="coinAmount" placeholder="Сумма" />
+                     <button id="edit-coin-btn" className="addcoin-btn">Сохранить</button>
+                     <button id="edit-coin-close-btn" className="addcoin-btn">Отмена</button>
+                     <p className="error-message" ref={this.errorMessage}>.</p>
+                  </div>
                </div>
             </div>
-         </div>
-     );
+        );
+      // }
    }
 }
 

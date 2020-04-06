@@ -7,7 +7,7 @@
   background-color: #f8f8f8;
 }
 .wrapper{
-   max-width: 1200px;
+   width: 1200px;
    margin: 0 auto;
    position: relative;
 }
