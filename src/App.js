@@ -1,43 +1,36 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 import Coin from './Coin/Coin';
 import AddCoin from './AddCoin/AddCoin';
 
-import { config } from './Config/config';
-import firebase from 'firebase/app';
-import 'firebase/database';
+import firebase from './Config/config';
 
 
-class App extends Component {
-   constructor(props){
-      super(props);
+function App() {
 
-      this.app = firebase.initializeApp(config);
-      this.database = this.app.database().ref().child('coinList'); /* coinList - real data */
+   const app = firebase;
+   const database = app.database().ref().child('coinList'); 
+   /* coinList - real data */
+   /* testone - test data */
 
-      this.editForm = React.createRef();
-      this.errorMessage = React.createRef();
+   const editForm = useRef(null);
+   const errorMessage = useRef(null);
 
-      this.state = {
-         coinArray: [],
-         coinFullSum: 0,
-         // userIP: '',
-      }
-   }
+   const [coinArray, setCoinArray] = useState([]);
+   const [coinFullSum, setCoinFullSum] = useState(0);
 
-   componentDidMount() {
-      this.coinArrayRebuild();
-      // this.userIpChecker();
-   }
+   useEffect(() => {
+      coinArrayRebuild();
+   }, []);
 
-   coinArrayRebuild = () => {
+   function coinArrayRebuild() {
       let newArray = [];
       let coinNameString = '';
       let apiCallUrl = '';
       let coinFullSum = 0;
 
-      this.database.once('value', snap => {
+      database.once('value', snap => {
          snap.forEach(function(snapItem) {
             newArray.push({
                id: snapItem.key,
@@ -51,182 +44,142 @@ class App extends Component {
 
          fetch(apiCallUrl)
          .then(response => response.json())
-         .then(json => this.setState(() => {
+         .then(json => {
             for (let i = 0; i < newArray.length; i++) {
-               newArray[i].coinPrice = json.RAW[newArray[i].coinName].USD.PRICE;
+               newArray[i].coinPrice = json.RAW[newArray[i].coinName.toUpperCase()].USD.PRICE;
                newArray[i].coinInCash = (json.RAW[newArray[i].coinName].USD.PRICE * newArray[i].coinAmount).toFixed(2);
                newArray[i].coinImgUrl = 'https://www.cryptocompare.com' + json.RAW[newArray[i].coinName].USD.IMAGEURL;
                coinFullSum += newArray[i].coinInCash * 1;
             }
 
-            this.setState({
-               coinArray: newArray,
-               coinFullSum: coinFullSum.toFixed(2)
-            });
-         }));
+            setCoinArray(newArray);
+            setCoinFullSum(coinFullSum.toFixed(2));
+         });
       });
    }
 
-   coinSumReduce = (singleCoinSum) => {
-      let newSum = (this.state.coinFullSum - parseInt(singleCoinSum, 10)).toFixed(2);
+   const coinSumReduce = (singleCoinSum) => {
+      let newSum = (coinFullSum - parseInt(singleCoinSum, 10)).toFixed(2);
 
-      this.setState({
-         coinFullSum: newSum
-      });
+      setCoinFullSum(newSum);
    }
 
-   removeCoin = (id) => {
-      let coinArray = [...this.state.coinArray];
+   const removeCoin = (id) => {
+      let newArray = coinArray;
 
-      this.database.child(id).remove();
+      database.child(id).remove();
 
-      for (let i=0; i < coinArray.length; i++) {
-         if (coinArray[i].id === id) {
-            coinArray.splice(i, 1);
+      for (let i=0; i < newArray.length; i++) {
+         if (newArray[i].id === id) {
+            newArray.splice(i, 1);
          }
       }
 
-      this.setState({
-         coinArray
-      });
+      setCoinArray(newArray);
+      coinArrayRebuild();
    }
 
-   addCoin = (coin) => {
-      this.database.push().set({
+   const addCoin = (coin) => {
+      database.push().set({
          coinName: coin.coinName,
          coinAmount: coin.coinAmount,
       });
 
-      this.coinArrayRebuild();
+      coinArrayRebuild();
    }
 
-   editCoin = (coin) => {
-      let coinArray = [...this.state.coinArray];
+   const editCoin = (coin) => {
+      let newArray = coinArray;
 
       let editCoinBtn = document.getElementById("edit-coin-btn");
       let editCoinCloseBtn = document.getElementById("edit-coin-close-btn");
-      let errorMessage = this.errorMessage.current;
 
       let editCoinName;
       let editCoinAmount;
 
-      this.editForm.current.style = "opacity: 1; visibility: visible";
+      editForm.current.style = "opacity: 1; visibility: visible";
 
-      for (let i=0; i < coinArray.length; i++) {
-         if(coinArray[i].id === coin.id){
-            document.getElementById("coinName").value = coinArray[i].coinName;
-            document.getElementById("coinAmount").value = coinArray[i].coinAmount;
+      for (let i=0; i < newArray.length; i++) {
+         if(newArray[i].id === coin.id){
+            document.getElementById("coinName").value = newArray[i].coinName;
+            document.getElementById("coinAmount").value = newArray[i].coinAmount;
          }
       }
       
       editCoinBtn.onclick = () => {
-         for (let i=0; i < coinArray.length; i++) {
-            if(coinArray[i].id === coin.id){
+         for (let i=0; i < newArray.length; i++) {
+            if(newArray[i].id === coin.id){
                editCoinName = document.getElementById("coinName").value;
                editCoinAmount = document.getElementById("coinAmount").value;
             }
          }
 
          if (isNaN(editCoinAmount) || editCoinAmount === '' || editCoinAmount === 0) {
-            this.errorMessage.current.textContent = "Ошибка. Введите число.";
-            errorMessage.classList.add("error-message--fade-in");
+            errorMessage.current.textContent = "Need a number.";
+            errorMessage.current.classList.add("error-message--fade-in");
          }
          else {
-            for (let i = 0; i < coinArray.length; i++) {
-               if(coinArray[i].id === coin.id) {
-                  this.database.child(coin.id).set({
+            for (let i = 0; i < newArray.length; i++) {
+               if(newArray[i].id === coin.id) {
+                  database.child(coin.id).set({
                      coinName: editCoinName,
                      coinAmount: editCoinAmount
                   });
 
-                  this.coinArrayRebuild();
+                  coinArrayRebuild();
                }
             }
             
-            this.editForm.current.style = "opacity: 0; visibility: hidden";
-            errorMessage.classList.remove("error-message--fade-in");
+            editForm.current.style = "opacity: 0; visibility: hidden";
+            errorMessage.current.classList.remove("error-message--fade-in");
          }
       }
 
       editCoinCloseBtn.onclick = () => {
-         this.editForm.current.style = "opacity: 0; visibility: hidden";
-         errorMessage.classList.remove("error-message--fade-in");
+         editForm.current.style = "opacity: 0; visibility: hidden";
+         errorMessage.current.classList.remove("error-message--fade-in");
       }
    }
 
-   // userIpChecker = () => {
-   //    fetch('http://ip-api.com/json/')
-   //       .then(response => response.json())
-   //       .then(json => this.setState({
-   //          userIP: json.query
-   //       }));
-   // }
+   return (
+      <div className="App">
+         <div className="wrapper">
+            <div className="coin-full-sum"><span>Total</span><br/>${coinFullSum}</div>
 
-   render() {
-      // if (this.state.userIP !== "93.73.199.135") {
-      //    return(
-      //       <div className="App">
-      //          Sorry man, it's not available for you :(
-      //       </div>
-      //    );
-      // }
-      // else {
-         return (
-            <div className="App">
-               <div className="wrapper">
-                  <div className="coin-full-sum"><span>Вся сумма</span><br/>${this.state.coinFullSum}</div>
-   
-                  <div className="coin-list">
-                  {
-                     this.state.coinArray.map((item) => {
-                        return(
-                           <Coin 
-                              coinId={item.id} 
-                              coinName={item.coinName} 
-                              coinAmount={item.coinAmount}
-                              coinPrice={item.coinPrice}
-                              coinInCash={item.coinInCash}
-                              coinImgUrl={item.coinImgUrl}
-                              key={item.id}
-   
-                              removeCoin={this.removeCoin}
-                              coinSumBuild={this.coinSumBuild}
-                              coinSumReduce={this.coinSumReduce}
-                              editCoin={this.editCoin}
-                           />
-                        )
-                     })
-                  }
-                  </div>
-   
-                  <AddCoin addCoin={this.addCoin} />
-                  
-                  <div className="edit-form" ref={this.editForm}>
-                     <select className="edit-coin-name addcoin-input" id="coinName">
-                        <option selected value="BTC">Bitcoin</option>
-                        <option value="BCH">Bitcoin Cash</option>
-                        <option value="BNB">Binance Coin</option>
-                        <option value="DASH">Dash</option>
-                        <option value="EOS">EOS</option>
-                        <option value="ETH">Ethereum</option>
-                        <option value="LTC">Litecoin</option>
-                        <option value="XMR">Monero</option>
-                        <option value="NEO">NEO</option>
-                        <option value="XLM">Stellar</option>
-                        <option value="TRX">Tron</option>
-                        <option value="XRP">XRP</option>
-                        <option value="ZEC">Zcash</option>
-                     </select>
-                     <input className="edit-coin-amount addcoin-input" id="coinAmount" placeholder="Сумма" />
-                     <button id="edit-coin-btn" className="addcoin-btn">Сохранить</button>
-                     <button id="edit-coin-close-btn" className="addcoin-btn">Отмена</button>
-                     <p className="error-message" ref={this.errorMessage}>.</p>
-                  </div>
-               </div>
+            <div className="coin-list">
+            {
+               coinArray.map((item) => {
+                  return(
+                     <Coin 
+                        coinId={item.id} 
+                        coinName={item.coinName} 
+                        coinAmount={item.coinAmount}
+                        coinPrice={item.coinPrice}
+                        coinInCash={item.coinInCash}
+                        coinImgUrl={item.coinImgUrl}
+                        key={item.id}
+
+                        removeCoin={removeCoin}
+                        coinSumReduce={coinSumReduce}
+                        editCoin={editCoin}
+                     />
+                  )
+               })
+            }
             </div>
-        );
-      // }
-   }
+
+            <AddCoin addCoin={addCoin} />
+            
+            <div className="edit-form" ref={editForm}>
+               <input className="edit-coin-name addcoin-input" id="coinName" />
+               <input className="edit-coin-amount addcoin-input" id="coinAmount" placeholder="Сумма" />
+               <button id="edit-coin-btn" className="addcoin-btn">Save</button>
+               <button id="edit-coin-close-btn" className="addcoin-btn">Cancel</button>
+               <p className="error-message" ref={errorMessage}>.</p>
+            </div>
+         </div>
+      </div>
+   );
 }
 
 export default App;
